@@ -6,7 +6,7 @@ import sentencepiece as spm
 import random
 import math
 
-# Model Classes (from your code)
+# Model Classes (unchanged)
 class BiLSTMEncoder(nn.Module):
     """BiLSTM Encoder (2 layers as required)"""
     def __init__(self, vocab_size, embed_dim, hidden_dim, num_layers=2, dropout=0.1):
@@ -199,7 +199,7 @@ class Seq2SeqModel(nn.Module):
                 break
         return torch.cat(outputs, dim=1)
 
-# Inference Function
+# Inference Function (unchanged)
 def translate_text(model, text, urdu_tokenizer, roman_tokenizer):
     """Translate a single text"""
     model.eval()
@@ -220,7 +220,7 @@ def translate_text(model, text, urdu_tokenizer, roman_tokenizer):
             translated_text = roman_tokenizer.decode(clean_tokens)
         return translated_text
     except Exception as e:
-        return f"Error during transliteration: {str(e)}"
+        return f"Error during translation: {str(e)}"
 
 # Set device to CPU
 device = torch.device('cpu')
@@ -255,13 +255,164 @@ except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
 
-# Streamlit UI
-st.title("Urdu to Roman Transliteration")
-st.write("Enter Urdu text to get its Roman transliteration.")
-urdu_input = st.text_area("Urdu Text:", placeholder="Enter Urdu text here (e.g., دل کی بات)")
-if st.button("Transliterate"):
-    result = translate_text(model, urdu_input, urdu_tokenizer, roman_tokenizer)
-    if result.startswith("Error"):
-        st.error(result)
+# Streamlit UI with Enhanced Features
+# Custom CSS for styling and animations
+st.markdown("""
+<style>
+/* General styling */
+body {
+    font-family: 'Arial', sans-serif;
+}
+
+/* Naqsh-e-Urdu title with gradient and typing animation */
+.naqsh-title {
+    font-size: 3em;
+    font-weight: bold;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    -webkit-background-clip: text;
+    color: transparent;
+    display: inline-block;
+    animation: typing 2s steps(20, end), blink-caret .5s step-end infinite alternate;
+    white-space: nowrap;
+    overflow: hidden;
+    border-right: 3px solid #333;
+}
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+@keyframes blink-caret {
+    from, to { border-color: transparent; }
+    50% { border-color: #333; }
+}
+
+/* Fade-in animation for results */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Button styling with hover effect */
+.stButton>button {
+    background-color: #4ecdc4;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+.stButton>button:hover {
+    background-color: #ff6b6b;
+    transform: scale(1.05);
+}
+
+/* Clear button styling */
+.clear-button>button {
+    background-color: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+.clear-button>button:hover {
+    background-color: #e55a5a;
+    transform: scale(1.05);
+}
+
+/* Copy button styling */
+.copy-button>button {
+    background-color: #45b7d1;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+.copy-button>button:hover {
+    background-color: #3a9bb1;
+    transform: scale(1.05);
+}
+
+/* Text area styling */
+.stTextArea textarea {
+    border: 2px solid #4ecdc4;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 1.1em;
+}
+.stTextArea textarea:focus {
+    border-color: #ff6b6b;
+    box-shadow: 0 0 5px rgba(255, 107, 107, 0.5);
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Model name with animated title
+st.markdown('<div class="naqsh-title">Naqsh-e-Urdu</div>', unsafe_allow_html=True)
+st.markdown("Enter Urdu text below to get its Roman Urdu translation.")
+
+# Initialize session state for input and output
+if 'urdu_input' not in st.session_state:
+    st.session_state.urdu_input = ""
+if 'result' not in st.session_state:
+    st.session_state.result = ""
+
+# Text area with unique key
+input_key = "urdu_input_area"
+urdu_input = st.text_area("Urdu Text:", value=st.session_state.urdu_input, 
+                         placeholder="Enter Urdu text here (e.g., دل کی بات)", 
+                         key=input_key)
+
+# JavaScript for Enter key detection
+st.markdown("""
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const textarea = document.querySelector("textarea");
+    textarea.addEventListener("keydown", function(event) {
+        if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) {
+            event.preventDefault();
+            document.querySelectorAll("p > button")[0].click();  // Targets the first button (Translate)
+        }
+    });
+});
+</script>
+""", unsafe_allow_html=True)
+
+# Buttons in a row
+col1, col2, col3 = st.columns([1, 1, 1])
+with col1:
+    if st.button("Translate"):
+        if urdu_input.strip():
+            with st.spinner("Translating..."):
+                result = translate_text(model, urdu_input, urdu_tokenizer, roman_tokenizer)
+                st.session_state.urdu_input = urdu_input
+                st.session_state.result = result
+        else:
+            st.session_state.result = "Error: Input text is empty"
+with col2:
+    if st.button("Clear", key="clear_button", help="Clear the input text"):
+        st.session_state.urdu_input = ""
+        st.session_state.result = ""
+        st.rerun()
+with col3:
+    if st.session_state.result and not st.session_state.result.startswith("Error"):
+        if st.button("Copy Result", key="copy_button"):
+            st.markdown(f"""
+            <script>
+            navigator.clipboard.writeText("{st.session_state.result}");
+            alert("Result copied to clipboard!");
+            </script>
+            """, unsafe_allow_html=True)
+
+# Display result
+if st.session_state.result:
+    if st.session_state.result.startswith("Error"):
+        st.markdown(f'<div class="fade-in"><span style="color: red;">{st.session_state.result}</span></div>', 
+                    unsafe_allow_html=True)
     else:
-        st.success(f"**Roman Transliteration:** {result}")
+        st.markdown(f'<div class="fade-in"><b>Roman Urdu Translation:</b> {st.session_state.result}</div>', 
+                    unsafe_allow_html=True)
